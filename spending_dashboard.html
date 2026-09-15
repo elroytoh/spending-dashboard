@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Spending Dashboard — Elroy</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d0f18;color:#e2e8f0;min-height:100vh;}
+
+/* ── Password screen ─────────────────────────────────────── */
+#pwScreen{position:fixed;inset:0;background:#0d0f18;z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;}
+.pw-box{background:#141724;border:1px solid #252b45;border-radius:16px;padding:36px 32px;width:100%;max-width:360px;text-align:center;}
+.pw-logo{width:52px;height:52px;background:linear-gradient(135deg,#e53e3e,#dd6b20);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 18px;}
+.pw-box h2{font-size:18px;font-weight:700;color:#fff;margin-bottom:4px;}
+.pw-box p{font-size:13px;color:#6b7280;margin-bottom:24px;}
+.pw-input{width:100%;background:#0d0f18;border:1px solid #3a4168;border-radius:10px;padding:13px 16px;color:#e2e8f0;font-size:16px;text-align:center;letter-spacing:2px;outline:none;margin-bottom:12px;}
+.pw-input:focus{border-color:#6366f1;}
+.pw-input.shake{animation:shake .35s ease;}
+.pw-btn{width:100%;background:#6366f1;border:none;border-radius:10px;padding:13px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;}
+.pw-btn:hover{background:#5255cc;}
+.pw-err{font-size:12px;color:#f87171;margin-top:8px;min-height:18px;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+/* ── Header ──────────────────────────────────────────────── */
+.header{background:#141724;border-bottom:1px solid #252b45;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.logo{width:36px;height:36px;background:linear-gradient(135deg,#e53e3e,#dd6b20);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.header-text h1{font-size:17px;font-weight:700;color:#fff;}
+.header-text p{font-size:11px;color:#6b7280;}
+.header-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.hbtn{background:#252b45;border:1px solid #3a4168;color:#a5b4fc;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;}
+.hbtn:hover{border-color:#6366f1;background:#1e2235;}
+.hbtn.green{background:#0f2e20;border-color:#16a34a;color:#4ade80;}
+.hbtn.green:hover{background:#0d2a1c;}
+
+/* ── Banner ──────────────────────────────────────────────── */
+.banner{background:#141724;border-bottom:1px solid #252b45;padding:8px 20px;display:flex;gap:24px;align-items:center;overflow-x:auto;}
+.banner-item{font-size:11px;color:#6b7280;white-space:nowrap;}
+.banner-item strong{color:#c4c9e2;font-size:12px;display:block;}
+.banner-item.hi strong{color:#f87171;}
+
+/* ── Container ───────────────────────────────────────────── */
+.container{max-width:1240px;margin:0 auto;padding:18px 16px;}
+
+/* ── Month tabs ──────────────────────────────────────────── */
+.tabs-row{display:flex;gap:6px;margin-bottom:18px;align-items:center;flex-wrap:wrap;}
+.tab{padding:7px 16px;border-radius:8px;font-size:13px;cursor:pointer;background:#141724;border:1px solid #252b45;color:#6b7280;transition:all .15s;white-space:nowrap;}
+.tab:hover{border-color:#6366f1;color:#a5b4fc;}
+.tab.active{background:#6366f1;border-color:#6366f1;color:#fff;font-weight:500;}
+.view-toggle{margin-left:auto;display:flex;background:#141724;border:1px solid #252b45;border-radius:8px;overflow:hidden;}
+.vt-btn{padding:7px 13px;font-size:12px;cursor:pointer;color:#6b7280;border:none;background:none;}
+.vt-btn.active{background:#252b45;color:#e2e8f0;}
+
+/* ── Stats ───────────────────────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+.stat{background:#141724;border:1px solid #252b45;border-radius:12px;padding:16px 18px;}
+.stat .lbl{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.stat .val{font-size:24px;font-weight:700;color:#fff;line-height:1;}
+.stat .sub{font-size:11px;color:#6b7280;margin-top:4px;}
+.stat.red .val{color:#f87171;}
+.stat.grn .val{color:#34d399;}
+.stat.blu .val{font-size:16px;padding-top:5px;color:#60a5fa;}
+.stat.pur .val{font-size:15px;padding-top:5px;color:#a78bfa;}
+
+/* ── Charts ──────────────────────────────────────────────── */
+.charts{display:grid;grid-template-columns:260px 1fr;gap:14px;margin-bottom:18px;}
+.card{background:#141724;border:1px solid #252b45;border-radius:12px;padding:18px;}
+.card h3{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px;}
+.donut-wrap{position:relative;width:190px;height:190px;margin:0 auto;}
+.donut-centre{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
+.donut-centre .dv{font-size:18px;font-weight:700;color:#fff;}
+.donut-centre .dl{font-size:10px;color:#6b7280;}
+.cat-list{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;padding-right:2px;}
+.cat-row{display:flex;align-items:center;gap:9px;cursor:pointer;padding:4px 6px;border-radius:6px;}
+.cat-row:hover,.cat-row.sel{background:#1e2235;}
+.cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.cat-name{font-size:13px;color:#c4c9e2;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cat-bar-bg{width:72px;height:5px;background:#252b45;border-radius:3px;flex-shrink:0;}
+.cat-bar{height:100%;border-radius:3px;}
+.cat-amt{font-size:12px;font-weight:600;color:#fff;min-width:68px;text-align:right;}
+.cat-pct{font-size:11px;color:#6b7280;min-width:32px;text-align:right;}
+
+/* ── Merchant grid ───────────────────────────────────────── */
+.m-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+.m-card{background:#1a1e30;border:1px solid #252b45;border-radius:10px;padding:13px 15px;cursor:pointer;}
+.m-card:hover,.m-card.sel{border-color:#6366f1;}
+.m-name{font-size:13px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.m-meta{font-size:11px;color:#6b7280;margin-top:2px;}
+.m-amt{font-size:17px;font-weight:700;color:#fff;margin-top:7px;}
+.m-cat{display:inline-block;margin-top:5px;padding:2px 7px;border-radius:99px;font-size:11px;}
+
+/* ── Transactions ────────────────────────────────────────── */
+.tx-card{background:#141724;border:1px solid #252b45;border-radius:12px;overflow:hidden;}
+.tx-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #252b45;flex-wrap:wrap;gap:8px;}
+.tx-head h3{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;}
+.tx-ctrls{display:flex;gap:7px;flex-wrap:wrap;}
+.srch{background:#0d0f18;border:1px solid #252b45;border-radius:7px;padding:7px 11px;color:#e2e8f0;font-size:13px;width:160px;outline:none;}
+.srch:focus{border-color:#6366f1;}
+.fsel{background:#0d0f18;border:1px solid #252b45;border-radius:7px;padding:7px 10px;color:#e2e8f0;font-size:13px;outline:none;cursor:pointer;max-width:160px;}
+.fsel:focus{border-color:#6366f1;}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;color:#6b7280;font-weight:500;padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #252b45;white-space:nowrap;}
+td{padding:9px 14px;border-bottom:1px solid #1a1e30;color:#c4c9e2;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#1a1e30;}
+.td-amt{font-weight:600;color:#f87171;text-align:right;white-space:nowrap;}
+.td-amt.cr{color:#34d399;}
+.td-date{color:#6b7280;white-space:nowrap;font-size:11px;}
+.td-m{font-weight:500;color:#e2e8f0;}
+.td-raw{font-size:10px;color:#4b5563;margin-top:1px;}
+.badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:11px;font-weight:500;}
+.rule-badge{display:inline-block;width:14px;height:14px;background:#16a34a;border-radius:3px;font-size:9px;color:#fff;text-align:center;line-height:14px;margin-left:3px;vertical-align:middle;cursor:default;}
+.pager{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-top:1px solid #252b45;font-size:12px;color:#6b7280;}
+.pager-btns{display:flex;gap:6px;}
+.pbtn{background:#1a1e30;border:1px solid #252b45;border-radius:6px;padding:5px 13px;color:#c4c9e2;cursor:pointer;font-size:12px;}
+.pbtn:hover:not(:disabled){border-color:#6366f1;color:#a5b4fc;}
+.pbtn:disabled{opacity:.35;cursor:default;}
+
+/* ── Modals ──────────────────────────────────────────────── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:50;align-items:center;justify-content:center;padding:16px;}
+.overlay.show{display:flex;}
+.modal{background:#141724;border:1px solid #3a4168;border-radius:14px;padding:26px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;}
+.modal h2{font-size:15px;font-weight:700;margin-bottom:6px;}
+.modal p{font-size:13px;color:#6b7280;margin-bottom:16px;line-height:1.5;}
+.dz{border:2px dashed #3a4168;border-radius:10px;padding:28px;text-align:center;cursor:pointer;}
+.dz:hover,.dz.over{border-color:#6366f1;background:#1a1e35;}
+.dz-icon{font-size:32px;margin-bottom:8px;}
+.dz h4{font-size:14px;color:#c4c9e2;margin-bottom:3px;}
+.dz p{font-size:12px;color:#6b7280;margin:0;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.chip{background:#1a1e35;border:1px solid #3a4168;border-radius:20px;padding:3px 10px;font-size:12px;color:#c4c9e2;display:flex;align-items:center;gap:5px;}
+.chip .rm{cursor:pointer;color:#6b7280;font-size:14px;line-height:1;}
+.chip .rm:hover{color:#f87171;}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap;}
+.btn-s{background:none;border:1px solid #3a4168;border-radius:8px;padding:8px 16px;color:#c4c9e2;cursor:pointer;font-size:13px;}
+.btn-p{background:#6366f1;border:none;border-radius:8px;padding:8px 16px;color:#fff;cursor:pointer;font-size:13px;font-weight:500;}
+.btn-p:hover{background:#5255cc;}
+.btn-g{background:#0f2e20;border:1px solid #16a34a;border-radius:8px;padding:8px 16px;color:#4ade80;cursor:pointer;font-size:13px;}
+
+/* ── Rules panel ─────────────────────────────────────────── */
+.rules-section{margin-top:18px;}
+.rules-section h4{font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
+.rule-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #1e2235;}
+.rule-row:last-child{border-bottom:none;}
+.rule-merchant{font-size:13px;color:#c4c9e2;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rule-cat{font-size:12px;color:#6b7280;}
+.rule-del{background:none;border:none;cursor:pointer;color:#4b5563;font-size:14px;padding:2px 6px;}
+.rule-del:hover{color:#f87171;}
+.no-rules{font-size:13px;color:#4b5563;font-style:italic;padding:8px 0;}
+
+/* ── Processing ──────────────────────────────────────────── */
+.processing{text-align:center;padding:14px;font-size:13px;color:#a5b4fc;display:none;}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid #3a4168;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Toast ───────────────────────────────────────────────── */
+.toast{position:fixed;bottom:20px;right:16px;background:#1a1e35;border:1px solid #3a4168;border-radius:10px;padding:11px 16px;font-size:13px;color:#c4c9e2;box-shadow:0 6px 24px rgba(0,0,0,.5);transform:translateY(70px);opacity:0;transition:all .3s;z-index:200;max-width:280px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.ok{border-color:#34d399;}
+.toast.err{border-color:#f87171;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:#3a4168;border-radius:3px;}
+
+/* ── Mobile ──────────────────────────────────────────────── */
+@media(max-width:700px){
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .charts{grid-template-columns:1fr;}
+  .header-text p{display:none;}
+  .container{padding:14px 12px;}
+  .stat .val{font-size:20px;}
+  .srch{width:130px;}
+  .view-toggle{display:none;}
+  .banner{gap:16px;}
+}
+@media(max-width:480px){
+  .hbtn span{display:none;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .m-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+}
+#fileInput,#rulesInput{display:none;}
+</style>
+</head>
+<body>
+
+<!-- Password screen -->
+<div id="pwScreen">
+  <div class="pw-box">
+    <div class="pw-logo">🏦</div>
+    <h2>Spending Dashboard</h2>
+    <p>Enter your password to continue</p>
+    <input id="pwInput" class="pw-input" type="password" placeholder="••••••••"
+      onkeydown="if(event.key==='Enter')checkPw()">
+    <button class="pw-btn" onclick="checkPw()">Unlock</button>
+    <div class="pw-err" id="pwErr"></div>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">🏦</div>
+  <div class="header-text">
+    <h1>Spending Dashboard</h1>
+    <p id="hSub">DBS Altitude Visa — Elroy Toh</p>
+  </div>
+  <div class="header-actions">
+    <button class="hbtn" onclick="openRulesModal()">📋 <span>Rules (</span><span id="ruleCount">0</span><span>)</span></button>
+    <button class="hbtn" onclick="copySyncLink()" title="Copy a link that syncs your rules to another device">🔗 <span>Sync Link</span></button>
+    <button class="hbtn green" onclick="exportFile()">💾 <span>Export File</span></button>
+    <button class="hbtn" onclick="openUpload()">📄 <span>Add Statement</span></button>
+  </div>
+</div>
+
+<!-- Banner -->
+<div class="banner">
+  <div class="banner-item"><strong>14 Jun 2026</strong>Statement Date</div>
+  <div class="banner-item"><strong>4119 1100 9641 1209</strong>Card</div>
+  <div class="banner-item hi"><strong>S$ 1,683.29</strong>Amount Due</div>
+  <div class="banner-item"><strong>S$ 50.50</strong>Min. Payment</div>
+  <div class="banner-item"><strong>09 Jul 2026</strong>Due Date</div>
+</div>
+
+<div class="container">
+
+  <!-- Tabs -->
+  <div class="tabs-row" id="tabsRow">
+    <div class="view-toggle">
+      <button class="vt-btn active" onclick="setView('category',this)">By Category</button>
+      <button class="vt-btn" onclick="setView('merchant',this)">By Merchant</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat red"><div class="lbl">Total Spent</div><div class="val" id="sTotal">S$ 0</div><div class="sub" id="sTxn">0 transactions</div></div>
+    <div class="stat blu"><div class="lbl">Biggest Category</div><div class="val" id="sTopCat">—</div><div class="sub" id="sTopCatAmt"></div></div>
+    <div class="stat pur"><div class="lbl">Most Visited</div><div class="val" id="sTopM">—</div><div class="sub" id="sTopMAmt"></div></div>
+    <div class="stat grn"><div class="lbl">Avg / Transaction</div><div class="val" id="sAvg">S$ 0</div><div class="sub">per purchase</div></div>
+  </div>
+
+  <!-- Category view -->
+  <div id="viewCategory">
+    <div class="charts">
+      <div class="card">
+        <h3>Categories</h3>
+        <div class="donut-wrap">
+          <canvas id="donut"></canvas>
+          <div class="donut-centre"><div class="dv" id="donutVal">S$ 0</div><div class="dl">Total</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Breakdown</h3>
+        <div class="cat-list" id="catList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Merchant view -->
+  <div id="viewMerchant" style="display:none">
+    <div class="card" style="margin-bottom:18px">
+      <h3>Merchants <span style="font-weight:400;color:#4b5563;font-size:10px;margin-left:6px">tap a card to filter below</span></h3>
+      <div class="m-grid" id="mGrid"></div>
+    </div>
+  </div>
+
+  <!-- Transactions -->
+  <div class="tx-card">
+    <div class="tx-head">
+      <h3>Transactions <span id="txCount" style="font-weight:400;color:#4b5563;margin-left:4px;font-size:10px"></span></h3>
+      <div class="tx-ctrls">
+        <input class="srch" id="srch" placeholder="Search…" oninput="renderTable()">
+        <select class="fsel" id="catFlt" onchange="renderTable()">
+          <option value="">All categories</option>
+        </select>
+      </div>
+    </div>
+    <div class="processing" id="procMsg"><span class="spin"></span>Reading PDF…</div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>Date</th><th>Merchant</th><th>Category</th><th style="text-align:right">Amount</th>
+      </tr></thead>
+      <tbody id="txBody"></tbody></table>
+    </div>
+    <div class="pager">
+      <span id="pInfo"></span>
+      <div class="pager-btns">
+        <button class="pbtn" id="pPrev" onclick="changePage(-1)">← Prev</button>
+        <button class="pbtn" id="pNext" onclick="changePage(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Upload modal -->
+<div class="overlay" id="uploadOverlay" onclick="if(event.target.id==='uploadOverlay')closeUpload()">
+  <div class="modal">
+    <h2>📄 Add Statement</h2>
+    <p>Drop a DBS PDF statement. Multiple months stack — each gets its own tab automatically.</p>
+    <div class="dz" id="dz" onclick="document.getElementById('fileInput').click()">
+      <div class="dz-icon">📄</div>
+      <h4>Drop PDF here or tap to browse</h4>
+      <p>DBS Credit Card statements (PDF)</p>
+    </div>
+    <div class="chips" id="fChips"></div>
+    <div class="modal-footer"><button class="btn-s" onclick="closeUpload()">Done</button></div>
+  </div>
+</div>
+<input type="file" id="fileInput" accept=".pdf" multiple>
+
+<!-- Rules modal -->
+<div class="overlay" id="rulesOverlay" onclick="if(event.target.id==='rulesOverlay')closeRulesModal()">
+  <div class="modal">
+    <h2>📋 Merchant Rules</h2>
+    <p>Every time you fix a category, it's saved here. These rules apply automatically to all future statements you upload.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+      <button class="btn-g" onclick="document.getElementById('rulesInput').click()">⬆️ Import Rules</button>
+      <button class="btn-s" onclick="exportRules()">⬇️ Export Rules JSON</button>
+    </div>
+    <input type="file" id="rulesInput" accept=".json" onchange="importRules(this)">
+    <div class="rules-section">
+      <h4>Saved rules (<span id="rulesCount2">0</span>)</h4>
+      <div id="rulesList"></div>
+    </div>
+    <div class="modal-footer"><button class="btn-s" onclick="closeRulesModal()">Close</button></div>
+  </div>
+</div>
+
+<!-- Category picker modal -->
+<div class="overlay" id="catPickerOverlay" onclick="if(event.target.id==='catPickerOverlay')closeCatPicker()">
+  <div class="modal" style="max-width:360px;">
+    <h2>Change Category</h2>
+    <p id="catPickerDesc" style="color:#e2e8f0;font-size:14px;font-weight:500;margin-bottom:4px;"></p>
+    <p id="catPickerSub" style="font-size:12px;margin-bottom:16px;"></p>
+    <div id="catPickerBtns" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid #252b45;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+        <input type="checkbox" id="saveRuleChk" checked style="width:16px;height:16px;accent-color:#6366f1;">
+        <span>Remember this for all <strong id="saveRuleName"></strong> transactions</span>
+      </label>
+    </div>
+    <div class="modal-footer"><button class="btn-s" onclick="closeCatPicker()">Cancel</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Password ─────────────────────────────────────────────────────────────────
+// Change this to whatever password you want
+const DASHBOARD_PASSWORD = 'elroy2026';
+
+function checkPw(){
+  const val = document.getElementById('pwInput').value;
+  if(val === DASHBOARD_PASSWORD){
+    localStorage.setItem('pw_ok','1');
+    document.getElementById('pwScreen').style.display='none';
+    document.querySelector('.header').style.visibility='visible';
+    document.getElementById('pwInput').value='';
+  } else {
+    const inp = document.getElementById('pwInput');
+    document.getElementById('pwErr').textContent = 'Wrong password, try again';
+    inp.classList.remove('shake');
+    void inp.offsetWidth; // trigger reflow to restart animation
+    inp.classList.add('shake');
+    inp.value='';
+  }
+}
+
+// Auto-unlock if already authenticated on this device
+(function(){
+  if(localStorage.getItem('pw_ok')==='1'){
+    document.getElementById('pwScreen').style.display='none';
+  } else {
+    // Hide dashboard content until unlocked
+    document.querySelector('.header') && (document.querySelector('.header').style.visibility='hidden');
+    setTimeout(()=>document.getElementById('pwInput').focus(), 100);
+  }
+})();
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ─── Categories ───────────────────────────────────────────────────────────────
+const CATS = [
+  { name:'Food & Drinks',     color:'#f59e0b', kw:['restaurant','cafe','coffee','toast','bakery','kaya','malatang','banh mi','salad','sandwich','mcdonald','dumpling','dessert','kopitiam','kpt@','taproom','saizeriya','capone','harriann','kintsugi','song fa',"stuff'd",'go ang','yuenkee','ah chew','community coffee','woowfles','ya kun','luckin','luckincoffee','tiong bahru','thai kha','gongyuan','smp*','chef wok','old tea hut','saizeriya','ameising'] },
+  { name:'Groceries',         color:'#10b981', kw:['cold storage','fairprice','ntuc','fp xtra','sheng siong','giant-','giant ','7-eleven','7 eleven','cheers','daiso','le tach'] },
+  { name:'Public Transport',  color:'#3b82f6', kw:['bus/mrt','bus mrt','helloride','shell','caltex','esso','petrol','diesel'] },
+  { name:'Work Meals',        color:'#8b5cf6', kw:['sodexo'] },
+  { name:'Ride Hailing',      color:'#6366f1', kw:['grab*','grab ','gojek','ryde'] },
+  { name:'Travel',            color:'#06b6d4', kw:['agoda','booking.com','expedia','airbnb','hotel','flight','airways','changi recommends'] },
+  { name:'Instalments',       color:'#ef4444', kw:['jannpaul','apple r736','001apple','002jann'] },
+  { name:'Entertainment',     color:'#ec4899', kw:['pokemon','cinema','golden village','cathay','shaw','spotify','netflix','steam','playstation'] },
+  { name:'Shopping',          color:'#84cc16', kw:['pazonia','popular book','uniqlo','zara','h&m','cotton on','muji','ikea'] },
+  { name:'Utilities & Bills', color:'#14b8a6', kw:['simbatelecom','simba','singtel','starhub',' m1 ','myrepublic','circles','SP services'] },
+  { name:'Health & Fitness',  color:'#22d3ee', kw:['ufit','guardian','watsons','unity pharmacy','clinic','hospital','raffles medical','polyclinic'] },
+  { name:'Education',         color:'#a855f7', kw:['national library','popular book','coursera','udemy','skillsfuture'] },
+  { name:'Other',             color:'#6b7280', kw:[] },
+];
+const CAT_NAMES = CATS.map(c => c.name);
+
+function catColor(n){ return CATS.find(c=>c.name===n)?.color||'#6b7280'; }
+
+// ─── Merchant normalization ───────────────────────────────────────────────────
+function normalize(d){
+  const s=d.toLowerCase().trim();
+  if(/^bus\/mrt|^bus mrt/.test(s))return 'BUS / MRT';
+  if(/^grab\*|^grab /.test(s))return 'Grab';
+  if(s.includes('sodexo'))return 'Sodexo (Work Canteen)';
+  if(s.includes('cold storage'))return 'Cold Storage';
+  if(/^mcdonald/.test(s))return "McDonald's";
+  if(s.includes('salad stop'))return 'Salad Stop';
+  if(/^7-eleven|^7 eleven/.test(s))return '7-Eleven';
+  if(s.includes('cheers'))return 'Cheers';
+  if(s.includes('fairprice')||/^ntuc/.test(s)||s.includes('fp xtra')||s.includes('ntuc fp'))return 'NTUC FairPrice';
+  if(s.includes('luckin')||s.includes('luckincoffee'))return 'Luckin Coffee';
+  if(s.includes('woowfles'))return 'Woowfles Bakery';
+  if(s.includes('ya kun'))return 'Ya Kun Kaya Toast';
+  if(s.includes('pokemon'))return 'Pokemon Singapore';
+  if(s.includes('agoda'))return 'Agoda';
+  if(s.includes('popular book'))return 'Popular Bookstore';
+  if(s.includes('simbatelecom'))return 'Simba Telecom';
+  if(s.includes('jannpaul')||s.includes('002jann'))return 'JannPaul (Ring Instalment)';
+  if((s.includes('apple')&&s.includes('changi'))||s.includes('001apple'))return 'Apple iPhone (Instalment)';
+  if(s.includes('song fa'))return 'Song Fa Bak Kut Teh';
+  if(s.includes('american taproom'))return 'American Taproom';
+  if(s.includes('tiong bahru bakery'))return 'Tiong Bahru Bakery';
+  if(s.includes('kintsugi'))return 'Kintsugi';
+  if(s.includes('harriann'))return "Harriann's";
+  if(s.includes('saizeriya'))return 'Saizeriya';
+  if(s.includes('al capone'))return 'Al Capone';
+  if(s.includes('sheng siong'))return 'Sheng Siong';
+  if(s.includes('giant'))return 'Giant Supermarket';
+  if(s.includes('go ang pratunam'))return 'Go Ang Pratunam';
+  if(s.includes('yuenkee')||s.includes('yuen kee'))return 'Yuen Kee Dumpling';
+  if(s.includes('ah chew'))return 'Ah Chew Desserts';
+  if(s.includes('gongyuan')||s.includes('malatang'))return 'Gongyuan Malatang';
+  if(s.includes('ufit'))return 'UFit Performance';
+  if(s.includes('thai kha'))return 'Thai Kha Seafood';
+  if(s.includes('kopitiam')||s.includes('kpt@'))return 'Kopitiam';
+  if(s.includes('community coffee'))return 'The Community Coffee Bar';
+  if(s.includes('daiso'))return 'Daiso Japan';
+  if(s.includes('ameising'))return 'Ameising';
+  if(s.includes('pazonia'))return 'Pazonia';
+  if(s.includes("stuff'd")||s.includes('stuff d'))return "Stuff'd";
+  if(s.includes('national library'))return 'National Library Board';
+  if(s.includes('shell'))return 'Shell';
+  if(s.includes('helloride'))return 'HelloRide';
+  if(s.includes('old tea hut')||s.includes('smp**old tea'))return 'Old Tea Hut';
+  if(s.includes('sandwich shop'))return 'The Sandwich Shop';
+  if(s.includes('joo chiat banh'))return 'Joo Chiat Banh Mi';
+  if(s.includes('chef wok')||s.includes('smp*chef'))return 'Chef Wok';
+  if(s.includes('le tach'))return 'Le Tach Vending';
+  if(s.includes('so good bakery'))return 'So Good Bakery';
+  if(s.includes('hg309'))return 'HG309';
+  return d.replace(/^SMP\*+/i,'').replace(/^2C2\*/i,'').replace(/\s*\d{8,}\s*$/,'').trim()||d;
+}
+
+function categorize(raw){
+  const s=raw.toLowerCase();
+  for(const c of CATS.slice(0,-1)){
+    if(c.kw.some(k=>s.includes(k)))return c.name;
+  }
+  return 'Other';
+}
+
+// ─── Merchant rules (remembered categorizations) ─────────────────────────────
+// !! DO NOT RENAME THIS LINE — used by exportFile() !!
+let MERCHANT_RULES = {"LAMY@RAFFLES CITY":"Shopping","KOUFU PTE LTD":"Food & Drinks","DRAFTLAND":"Food & Drinks","CHAGEE":"Food & Drinks","GET*GET*TAMOYA UDON":"Food & Drinks","DIN TAI FUNG-MBL":"Food & Drinks","TORI-Q PLAZA SINGAPURA":"Food & Drinks","OLD CHANG KEE - JEWEL":"Food & Drinks","JIN YU MAN TANG":"Food & Drinks","TICKETMASTER SINGAPORE":"Entertainment","LLAO LLAO - SUNTEC":"Food & Drinks","KOPIKAKIS BY KOPIFELLA":"Food & Drinks","XIANG XIANG HUNAN CUIS":"Food & Drinks","GRB*LITTLE TOKIO TAMPI":"Food & Drinks","FR WISMA-TEPPAN LUNCH":"Food & Drinks","FO ION-PEPPER LUNCH EX":"Food & Drinks","POP PLAY PLANET":"Entertainment","TORI-Q BEDOK MALL":"Food & Drinks","KILLINEY":"Food & Drinks","SCARLETT SUPERMARKET":"Food & Drinks","WOKHEY @ PLAZA SINGAPU":"Food & Drinks","BENGAWAN SOLO @ T BUS":"Food & Drinks","CHICHA SAN CHEN - PLAZ":"Food & Drinks","STARBUCKS@PLZ SING(PS)":"Food & Drinks","AMPS TEA":"Food & Drinks","AN LA GHIEN_45 LORONG":"Food & Drinks","328 KATONG LAKSA":"Food & Drinks","AKI SUSHI AND GRILL":"Food & Drinks","RAKU RAKU JAPANESE DIN":"Food & Drinks","TRIP.COM":"Travel","NET*SUBWAY @ SIGLAP":"Food & Drinks","TS/SUKIYA - PLAZA SING":"Food & Drinks","FRWA JIAO TAI YUAN":"Food & Drinks","GENKI SUSHI-CHINATOWN":"Food & Drinks","CHATERAISE - PARKWAY":"Food & Drinks","FLYSCOOT.0000000VDKLPD":"Travel","ETNA @ UPPER EAST COAS":"Food & Drinks","CASA DENTAL (BEDOK)":"Health & Fitness","OLD CHANG KEE":"Food & Drinks","SISTIC* INTERNET":"Entertainment","FU LIN TOFU YUEN":"Food & Drinks","TS/SUKIYA - CENTURY SQ":"Food & Drinks","HAWKERS STREET-TAMPINE":"Food & Drinks","BREADTALK-PS":"Food & Drinks","SOLACE STUDIOS":"Entertainment","BAO BAO - ION":"Food & Drinks","ATLAS VENDING":"Food & Drinks","ICHIKOKUDO @ SUNTEC":"Food & Drinks","ARCADE PLANET PTE LTD":"Entertainment","EPIDOR - RAFFLES CITY":"Food & Drinks","DIAN XIAO ER":"Food & Drinks","SPILL TEA PTE LTD":"Food & Drinks","SHOPEE APPLEPAY":"Shopping","BAKER & COOK @ SWAN LA":"Food & Drinks","GREAT NANYANG CONNOISS":"Food & Drinks","GRB*PALAPA CITY GATE":"Food & Drinks","MY KAMPUNG - KALLANG W":"Food & Drinks","FR SC-LBN MIXED RICE":"Food & Drinks","BENJAMIN BARKER - ION":"Shopping","BREADTALK@CHINATOWN PO":"Food & Drinks","VENDING HAVEN M23-B":"Food & Drinks","FUTURE RETAIL PTE LTD":"Shopping","KOPIFELLAS":"Food & Drinks","FAMPLAYTCG":"Shopping","BEARD PAPA'S - PLAZA S":"Food & Drinks","SCARLETT @ BUGIS+":"Food & Drinks","STARBUCKS@BUGIS+(BGP)":"Food & Drinks","HEAVENLYWANG@HWT1ADTR":"Food & Drinks","SUSHI EXPRESS PARKWAY":"Food & Drinks","FOOK KIN":"Food & Drinks","FRESHKITCHEN DHOBY GHA":"Food & Drinks","TIP TOP TERMINAL 1 TRA":"Food & Drinks","YAKINIKU LIKE-SNC":"Food & Drinks","CHICHA SAN CHEN - KALL":"Food & Drinks","ICHIBAN BOSHI-P WAY PA":"Food & Drinks","TAKAGI RAMEN-DHOBY GHA":"Food & Drinks","JASONS MARKET PLACE-RA":"Food & Drinks","EATJOY PTE LTD* OD":"Food & Drinks","JOLLIBEE-SUNTEC CITY":"Food & Drinks","SCARLETT @ SUNTEC CITY":"Food & Drinks","Shell":"Public Transport"};
+
+function loadRules(){
+  try{ MERCHANT_RULES=JSON.parse(localStorage.getItem('spending_rules')||'{}'); }catch(e){}
+  updateRuleCount();
+}
+function saveRule(merchant,cat){
+  MERCHANT_RULES[merchant]=cat;
+  localStorage.setItem('spending_rules',JSON.stringify(MERCHANT_RULES));
+  updateRuleCount();
+}
+function deleteRule(merchant){
+  delete MERCHANT_RULES[merchant];
+  localStorage.setItem('spending_rules',JSON.stringify(MERCHANT_RULES));
+  // Re-categorize any tx with this merchant back to keyword-based
+  allTx.forEach(t=>{ if(t.merchant===merchant){ t.category=categorize(t.raw); t.ruleApplied=false; }});
+  updateRuleCount();
+  renderRulesList();
+  render();
+  toast(`Rule for "${merchant}" removed`, 'ok');
+}
+function updateRuleCount(){
+  const n=Object.keys(MERCHANT_RULES).length;
+  document.getElementById('ruleCount').textContent=n;
+  const el=document.getElementById('rulesCount2');
+  if(el)el.textContent=n;
+}
+function applyRulesToTx(txArr){
+  txArr.forEach(t=>{
+    if(MERCHANT_RULES[t.merchant]){
+      t.category=MERCHANT_RULES[t.merchant];
+      t.ruleApplied=true;
+    }
+  });
+}
+
+// ─── Statement data ───────────────────────────────────────────────────────────
+// No hardcoded transactions — upload PDFs via the "Add Statement" button.
+// Your merchant rules below will auto-apply to every statement you upload.
+const STATEMENT_DATA=[
+  // empty — transactions come from uploaded PDFs
+  // ['2026-05-11','BUS/MRT 851190514',4.04],
+  ['2026-05-12','BUS/MRT 851835914',4.04],
+  ['2026-05-13','BUS/MRT 852470790',5.12],
+  ['2026-05-14','AGODA.COM VJ SIN-SGN',112.05],
+  ['2026-05-14','BUS/MRT 853072885',4.04],
+  ['2026-05-15','SMP**OLD TEA HUT (CHAN)',5.20],
+  ['2026-05-15','THE SANDWICH SHOP (HSP)',4.00],
+  ['2026-05-15','SONG FA@BIZPARK CHANGI',50.33],
+  ['2026-05-15','BUS/MRT 853663323',1.59],
+  ['2026-05-16','7 ELEVEN-481 JOO CHIAT',3.80],
+  ['2026-05-16','JOO CHIAT BANH MI',21.40],
+  ['2026-05-16','BUS/MRT 854601965',4.46],
+  ['2026-05-17','YA KUN KAYA TOAST - FU',3.40],
+  ['2026-05-17','GONGYUAN MALATANG-FUNA',23.65],
+  ['2026-05-17','7-ELEVEN - CHINATOWN P',2.70],
+  ['2026-05-17','BUS/MRT 854961684',6.65],
+  ['2026-05-18','UFIT PERFORMANCE PTE L',4.00],
+  ['2026-05-18','WOOWFLES BY BAKERY CUI',2.20],
+  ['2026-05-18','SODEXO SINGAPORE - UBS',8.00],
+  ['2026-05-18','SMP*CHEF WOK @ STEAMED',13.60],
+  ['2026-05-18','BUS/MRT 855523922',4.92],
+  ['2026-05-19','SODEXO SINGAPORE - UBS',7.00],
+  ['2026-05-19','SODEXO SINGAPORE - UBS',1.30],
+  ['2026-05-19','7-ELEVEN-83 MARINE PAR',4.30],
+  ['2026-05-19','FAIRPRICE FINEST-MARIN',3.75],
+  ['2026-05-19','HELLORIDE SG',1.00],
+  ['2026-05-19','BUS/MRT 856158228',5.32],
+  ['2026-05-20','SODEXO SINGAPORE - UBS',8.00],
+  ['2026-05-20','BUS/MRT 856763827',5.20],
+  ['2026-05-21','POKEMON SINGAPORE PTE',69.00],
+  ['2026-05-21','GRAB* A-9C9VKIHWWRSHAV',13.70],
+  ['2026-05-21',"STUFF'D PLAZA SINGAPUR",6.30],
+  ['2026-05-21','BUS/MRT 857348962',4.04],
+  ['2026-05-22','SODEXO SINGAPORE - UBS',3.50],
+  ['2026-05-22','COLD STORAGE-PLAZA SIN',3.75],
+  ['2026-05-22','BUS/MRT 858441583',5.72],
+  ['2026-05-23','GRAB* A-9CHDASDWW34BAV',15.80],
+  ['2026-05-23','THAI KHA SEAFOOD',8.80],
+  ['2026-05-23','HG309 PTE LTD',1.80],
+  ['2026-05-24','LUCKIN COFFEE SGP PT',3.99],
+  ['2026-05-24','SO GOOD BAKERY KATONG',3.00],
+  ['2026-05-24','SHELL GEYLANG LOR 7',5.90],
+  ['2026-05-24','BUS/MRT 859250598',2.56],
+  ['2026-05-25','DAISO JAPAN - PS',2.18],
+  ['2026-05-25','SODEXO SINGAPORE - UBS',3.50],
+  ['2026-05-25','COLD STORAGE-SIGLAP V',3.25],
+  ['2026-05-25','COLD STORAGE-PLAZA SIN',3.75],
+  ['2026-05-25','MCDONALDS 930047',6.50],
+  ['2026-05-25','2C2*SALAD STOP',9.52],
+  ['2026-05-25','BUS/MRT 859788373',4.88],
+  ['2026-05-26','AMERICAN TAPROOM - WAT',55.39],
+  ['2026-05-26','MCDONALDS 930065',1.00],
+  ['2026-05-26','WOOWFLES BY BAKERY CUI',2.20],
+  ['2026-05-26','2C2*SALAD STOP',29.36],
+  ['2026-05-26','BUS/MRT 860353673',3.88],
+  ['2026-05-27','HARRIANNS PLQ MALL',33.50],
+  ['2026-05-27','KINTSUGI PTE. LTD.',54.91],
+  ['2026-05-27','7-ELEVEN - ECP',1.30],
+  ['2026-05-27','COLD STORAGE-SIGLAP V',29.75],
+  ['2026-05-27','BUS/MRT 861233241',5.52],
+  ['2026-05-28','NATIONAL LIBRARY BOARD',1.80],
+  ['2026-05-28','SIMBATELECOM*127696272',10.00],
+  ['2026-05-28','TIONG BAHRU BAKERY-EC',15.75],
+  ['2026-05-28','BUS/MRT 861622068',2.57],
+  ['2026-05-30','BUS/MRT 862715228',2.57],
+  ['2026-05-31','SHENG SIONG SUPERMARKE',5.10],
+  ['2026-05-31','SAIZERIYA - KALLANG LP',19.80],
+  ['2026-05-31','AL CAPONE UPPER EAST',25.90],
+  ['2026-05-31','7-ELEVEN - CHINATOWN P',3.80],
+  ['2026-05-31','BUS/MRT 863409609',7.40],
+  ['2026-06-01','YA KUN KAYA TOAST',5.80],
+  ['2026-06-01','BUS/MRT 863688176',3.08],
+  ['2026-06-02','POPULAR BOOK COMPANY-B',13.80],
+  ['2026-06-02','SODEXO SINGAPORE - UBS',7.50],
+  ['2026-06-02','POPULAR BOOK COMPANY-B',13.80],
+  ['2026-06-02','POKEMON SINGAPORE PTE',82.80],
+  ["2026-06-02","MCDONALD'S (BDML)",3.90],
+  ['2026-06-02','BUS/MRT 864190598',5.20],
+  ['2026-06-03','AH CHEW DESSERTS',8.50],
+  ['2026-06-03','2C2*SALAD STOP',9.52],
+  ['2026-06-03','BUS/MRT 864739027',7.93],
+  ['2026-06-04','THE COMMUNITY COFFEE B',4.60],
+  ['2026-06-04','WOOWFLES BY BAKERY CUI',2.00],
+  ['2026-06-04','SODEXO SINGAPORE - UBS',8.00],
+  ['2026-06-04','FP XTRA PARKWAY PARADE',6.80],
+  ['2026-06-04','LE TACH VENDING',2.50],
+  ['2026-06-04','FP XTRA PARKWAY PARADE',3.75],
+  ['2026-06-04','BUS/MRT 865731081',5.20],
+  ['2026-06-05','KOPITIAM INVESTMENT PT',4.86],
+  ['2026-06-05','SODEXO SINGAPORE - UBS',3.50],
+  ['2026-06-05','COLD STORAGE-PLAZA SIN',4.60],
+  ['2026-06-05','PAZONIA PTE LTD',12.80],
+  ['2026-06-05','AMEISING',58.75],
+  ['2026-06-05','BUS/MRT 866243105',4.58],
+  ['2026-06-06','BUS/MRT 866665686',1.38],
+  ['2026-06-07','NTUC FAIRPRICE APP PAY',8.28],
+  ['2026-06-07','NTUC FP-SIGLAP',3.75],
+  ['2026-06-07','BUS/MRT 867169434',1.28],
+  ['2026-06-08','COLD STORAGE-SIGLAP V',2.85],
+  ['2026-06-08','COLD STORAGE-SIGLAP V',0.55],
+  ['2026-06-08','LE TACH VENDING',1.00],
+  ['2026-06-08','2C2*SALAD STOP',10.32],
+  ['2026-06-08','GIANT-MARINE T',3.75],
+  ['2026-06-08','BUS/MRT 867573580',7.54],
+  ['2026-06-09','KPT@PARKWAY PARADE',7.20],
+  ['2026-06-09','COLD STORAGE P WAY PAR',3.75],
+  ['2026-06-09','GRAB* A-9ENN6OCWX5GBAV',13.92],
+  ['2026-06-09','AGODA.COM TR SGN-SIN',140.11],
+  ['2026-06-09','BUS/MRT 868571932',2.56],
+  ['2026-06-10','SODEXO SINGAPORE - UBS',8.00],
+  ['2026-06-10','7-ELEVEN - 9 PENANG RO',11.50],
+  ['2026-06-10','NTUC FAIRPRICE APP PAY',3.38],
+  ['2026-06-11','GO ANG PRATUNAM-PS',15.70],
+  ['2026-06-11','CHEERS - MARINE PARADE',1.50],
+  ['2026-06-12','FR SC-YUENKEE DUMPLING',15.60],
+  ['2026-06-12','SODEXO SINGAPORE - UBS',7.00],
+  ['2026-06-12','LUCKINCOFFEE',4.40],
+  ['2026-06-13','002JANNPAUL 12 (01)',233.33],
+];
+
+function makeMonth(d){ return d.toLocaleString('default',{month:'long',year:'numeric'}); }
+
+let allTx = []; // transactions come from uploaded PDFs
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let currentMonth='All', currentView='category', filterCat='', filterMerch='', page=1;
+const PER_PAGE=30;
+let pieChart=null;
+const loadedFiles=new Set();
+
+function fmt(v){ return 'S$ '+Math.abs(v).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+// ─── Filtered data ────────────────────────────────────────────────────────────
+function getMonthTx(){ return allTx.filter(t=>t.amount>0&&(currentMonth==='All'||t.month===currentMonth)); }
+function getDisplayTx(){
+  const q=document.getElementById('srch').value.toLowerCase();
+  return getMonthTx().filter(t=>{
+    if(filterCat&&t.category!==filterCat)return false;
+    if(filterMerch&&t.merchant!==filterMerch)return false;
+    if(q&&!t.merchant.toLowerCase().includes(q)&&!t.raw.toLowerCase().includes(q))return false;
+    return true;
+  });
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderMonthTabs(){
+  const months=[...new Set(allTx.filter(t=>t.amount>0).map(t=>t.month))]
+    .filter(m=>m!=='Unknown').sort((a,b)=>new Date(a)-new Date(b));
+  const toggle=document.querySelector('.view-toggle');
+  const row=document.getElementById('tabsRow');
+  [...row.children].forEach(c=>{ if(!c.classList.contains('view-toggle'))c.remove(); });
+  ['All',...months].forEach(m=>{
+    const el=document.createElement('div');
+    el.className='tab'+(m===currentMonth?' active':'');
+    el.dataset.month=m; el.textContent=m==='All'?'All Months':m;
+    el.onclick=()=>setMonth(el);
+    row.insertBefore(el,toggle);
+  });
+}
+
+function render(){
+  document.getElementById('welcomeCard')?.remove();
+  const txs=getMonthTx();
+  renderMonthTabs();
+  renderStats(txs);
+  if(currentView==='category')renderCatView(txs);
+  else renderMerchantView(txs);
+  populateCatFilter();
+  page=1; renderTable();
+}
+
+function renderStats(txs){
+  const total=txs.reduce((s,t)=>s+t.amount,0);
+  document.getElementById('sTotal').textContent=fmt(total);
+  document.getElementById('sTxn').textContent=txs.length+' transactions';
+  document.getElementById('donutVal').textContent=fmt(total);
+  document.getElementById('hSub').textContent=currentMonth==='All'?'DBS Altitude Visa — All Months':'DBS Altitude Visa — '+currentMonth;
+  const byCat={};
+  txs.forEach(t=>byCat[t.category]=(byCat[t.category]||0)+t.amount);
+  const topCat=Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
+  if(topCat){document.getElementById('sTopCat').textContent=topCat[0];document.getElementById('sTopCatAmt').textContent=fmt(topCat[1]);}
+  const byM={};
+  txs.forEach(t=>{byM[t.merchant]=byM[t.merchant]||{count:0,total:0};byM[t.merchant].count++;byM[t.merchant].total+=t.amount;});
+  const topM=Object.entries(byM).sort((a,b)=>b[1].count-a[1].count)[0];
+  if(topM){document.getElementById('sTopM').textContent=topM[0];document.getElementById('sTopMAmt').textContent=topM[1].count+' visits · '+fmt(topM[1].total);}
+  document.getElementById('sAvg').textContent=txs.length?fmt(total/txs.length):'S$ 0';
+}
+
+function renderCatView(txs){
+  const byCat={};
+  txs.forEach(t=>byCat[t.category]=(byCat[t.category]||0)+t.amount);
+  const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  const total=sorted.reduce((s,[,v])=>s+v,0);
+  const labels=sorted.map(([k])=>k), data=sorted.map(([,v])=>v);
+  const colors=labels.map(l=>catColor(l));
+  if(pieChart)pieChart.destroy();
+  pieChart=new Chart(document.getElementById('donut').getContext('2d'),{
+    type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#141724'}]},
+    options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.raw)} (${(ctx.raw/total*100).toFixed(1)}%)`}}},
+      cutout:'68%',onClick:(e,els)=>{if(els[0])clickCat(labels[els[0].index]);}}
+  });
+  const maxV=sorted[0]?.[1]||1;
+  document.getElementById('catList').innerHTML=sorted.map(([name,val])=>{
+    const pct=(val/total*100).toFixed(1),barPct=(val/maxV*100).toFixed(1),color=catColor(name);
+    return`<div class="cat-row${filterCat===name?' sel':''}" onclick="clickCat('${name.replace(/'/g,"\\'")}')">
+      <div class="cat-dot" style="background:${color}"></div>
+      <div class="cat-name">${name}</div>
+      <div class="cat-bar-bg"><div class="cat-bar" style="width:${barPct}%;background:${color}"></div></div>
+      <div class="cat-amt">${fmt(val)}</div>
+      <div class="cat-pct">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+function clickCat(name){filterCat=filterCat===name?'':name;filterMerch='';page=1;renderCatView(getMonthTx());renderTable();}
+
+function renderMerchantView(txs){
+  const byM={};
+  txs.forEach(t=>{if(!byM[t.merchant])byM[t.merchant]={count:0,total:0,cat:t.category};byM[t.merchant].count++;byM[t.merchant].total+=t.amount;});
+  const sorted=Object.entries(byM).sort((a,b)=>b[1].total-a[1].total);
+  document.getElementById('mGrid').innerHTML=sorted.map(([name,{count,total,cat}])=>{
+    const color=catColor(cat),sel=filterMerch===name?'sel':'';
+    return`<div class="m-card ${sel}" onclick="clickMerchant('${name.replace(/'/g,"\\'")}')">
+      <div class="m-name">${name}</div>
+      <div class="m-meta">${count} transaction${count>1?'s':''}</div>
+      <div class="m-amt">${fmt(total)}</div>
+      <span class="m-cat badge" style="background:${color}22;color:${color}">${cat}</span>
+    </div>`;
+  }).join('');
+}
+
+function clickMerchant(name){filterMerch=filterMerch===name?'':name;filterCat='';page=1;renderMerchantView(getMonthTx());renderTable();}
+
+function populateCatFilter(){
+  const cats=[...new Set(getMonthTx().map(t=>t.category))].sort();
+  const sel=document.getElementById('catFlt'),cur=sel.value;
+  sel.innerHTML='<option value="">All categories</option>'+cats.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join('');
+}
+
+function renderTable(){
+  const txs=getDisplayTx();
+  const start=(page-1)*PER_PAGE, slice=txs.slice(start,start+PER_PAGE);
+  document.getElementById('txCount').textContent=`(${txs.length})`;
+  const body=document.getElementById('txBody');
+  if(!txs.length){
+    body.innerHTML=`<tr><td colspan="4" style="text-align:center;color:#4b5563;padding:24px">No transactions match</td></tr>`;
+  }else{
+    body.innerHTML=slice.map(tx=>{
+      const color=catColor(tx.category);
+      const ds=tx.date.toLocaleDateString('en-SG',{day:'2-digit',month:'short',year:'numeric'});
+      const rulePip=tx.ruleApplied?`<span class="rule-badge" title="Category from your saved rules">R</span>`:'';
+      return`<tr>
+        <td class="td-date">${ds}</td>
+        <td><div class="td-m">${tx.merchant}</div><div class="td-raw">${tx.raw}</div></td>
+        <td>
+          <span class="badge" style="background:${color}22;color:${color}">${tx.category}</span>${rulePip}
+          <button onclick="openCatPicker(${allTx.indexOf(tx)})" title="Change category" style="background:none;border:none;cursor:pointer;color:#4b5563;font-size:12px;padding:2px 5px;margin-left:2px;min-width:28px;min-height:28px;">✏️</button>
+        </td>
+        <td class="td-amt">${fmt(tx.amount)}</td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('pInfo').textContent=txs.length?`${start+1}–${Math.min(start+PER_PAGE,txs.length)} of ${txs.length}`:'';
+  document.getElementById('pPrev').disabled=page===1;
+  document.getElementById('pNext').disabled=start+PER_PAGE>=txs.length;
+}
+
+function changePage(dir){page+=dir;renderTable();}
+
+// ─── Category picker ──────────────────────────────────────────────────────────
+let _editIdx=-1;
+function openCatPicker(idx){
+  _editIdx=idx;
+  const tx=allTx[idx];
+  document.getElementById('catPickerDesc').textContent=tx.merchant;
+  document.getElementById('catPickerSub').textContent=`Currently: ${tx.category} · S$ ${tx.amount.toFixed(2)}`;
+  document.getElementById('saveRuleName').textContent=tx.merchant;
+  document.getElementById('saveRuleChk').checked=true;
+  const btns=document.getElementById('catPickerBtns');
+  btns.innerHTML=CAT_NAMES.map(name=>{
+    const color=catColor(name),active=name===tx.category;
+    return`<button onclick="applyCat('${name.replace(/'/g,"\\'")}',${idx})" style="background:${active?color+'33':'#1a1e30'};border:1px solid ${active?color:'#252b45'};color:${active?color:'#c4c9e2'};border-radius:8px;padding:9px 14px;text-align:left;cursor:pointer;font-size:13px;font-weight:${active?'600':'400'}">${name}</button>`;
+  }).join('');
+  document.getElementById('catPickerOverlay').classList.add('show');
+}
+function closeCatPicker(){document.getElementById('catPickerOverlay').classList.remove('show');}
+
+function applyCat(cat,idx){
+  const tx=allTx[idx];
+  const oldCat=tx.category;
+  if(cat===oldCat){closeCatPicker();return;}
+  const saveRule_=document.getElementById('saveRuleChk').checked;
+  tx.category=cat;
+  tx.ruleApplied=saveRule_;
+  if(saveRule_){
+    saveRule(tx.merchant,cat);
+    // Apply to ALL matching transactions
+    let count=0;
+    allTx.forEach(t=>{
+      if(t.merchant===tx.merchant&&t!==tx){
+        t.category=cat; t.ruleApplied=true; count++;
+      }
+    });
+    toast(`Saved rule: ${tx.merchant} → ${cat}${count?` · applied to ${count} more`:''}`, 'ok');
+  }else{
+    toast(`Updated category to ${cat}`, 'ok');
+  }
+  closeCatPicker();
+  render();
+}
+
+// ─── Rules modal ──────────────────────────────────────────────────────────────
+function openRulesModal(){renderRulesList();document.getElementById('rulesOverlay').classList.add('show');}
+function closeRulesModal(){document.getElementById('rulesOverlay').classList.remove('show');}
+
+function renderRulesList(){
+  updateRuleCount();
+  const list=document.getElementById('rulesList');
+  const entries=Object.entries(MERCHANT_RULES).sort((a,b)=>a[0].localeCompare(b[0]));
+  if(!entries.length){list.innerHTML='<div class="no-rules">No rules saved yet. Edit a transaction category and tick "Remember this" to add one.</div>';return;}
+  list.innerHTML=entries.map(([m,c])=>{
+    const color=catColor(c);
+    return`<div class="rule-row">
+      <div class="rule-merchant">${m}</div>
+      <span class="badge" style="background:${color}22;color:${color};white-space:nowrap">${c}</span>
+      <button class="rule-del" onclick="deleteRule('${m.replace(/'/g,"\\'")}')">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function exportRules(){
+  const json=JSON.stringify(MERCHANT_RULES,null,2);
+  const a=document.createElement('a');
+  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(json);
+  a.download='spending_rules.json'; a.click();
+  toast('Rules exported ✓','ok');
+}
+
+function importRules(input){
+  const file=input.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const rules=JSON.parse(e.target.result);
+      Object.assign(MERCHANT_RULES,rules);
+      localStorage.setItem('spending_rules',JSON.stringify(MERCHANT_RULES));
+      applyRulesToTx(allTx);
+      updateRuleCount(); renderRulesList(); render();
+      toast(`Imported ${Object.keys(rules).length} rules ✓`,'ok');
+    }catch(err){toast('Invalid rules file','err');}
+  };
+  reader.readAsText(file);
+  input.value='';
+}
+
+// ─── Export updated HTML file (with rules baked in) ──────────────────────────
+function exportFile(){
+  const rulesJson=JSON.stringify(MERCHANT_RULES);
+  const src=document.documentElement.outerHTML;
+  // Replace the MERCHANT_RULES placeholder line
+  const updated=src.replace(
+    /let MERCHANT_RULES = \{[^;]*\};/,
+    `let MERCHANT_RULES = ${rulesJson};`
+  );
+  const a=document.createElement('a');
+  a.href='data:text/html;charset=utf-8,'+encodeURIComponent('<!DOCTYPE html>\n'+updated);
+  a.download='spending_dashboard.html'; a.click();
+  toast('File exported — open on any device ✓','ok');
+}
+
+// ─── Month / view switching ───────────────────────────────────────────────────
+function setMonth(el){
+  currentMonth=el.dataset.month; filterCat=''; filterMerch=''; page=1;
+  document.querySelectorAll('.tab[data-month]').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active'); render();
+}
+function setView(v,el){
+  currentView=v; filterCat=''; filterMerch=''; page=1;
+  document.querySelectorAll('.vt-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('viewCategory').style.display=v==='category'?'':'none';
+  document.getElementById('viewMerchant').style.display=v==='merchant'?'':'none';
+  render();
+}
+
+// ─── Upload / PDF ─────────────────────────────────────────────────────────────
+function openUpload(){document.getElementById('uploadOverlay').classList.add('show');}
+function closeUpload(){document.getElementById('uploadOverlay').classList.remove('show');}
+const MONTH_IDX={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+
+// Detect year from statement text, fallback to current year
+function detectYear(text){
+  const m=text.match(/\b(202\d)\b/); return m?parseInt(m[1]):new Date().getFullYear();
+}
+
+async function parseDBS(text,sourceName){
+  const txs=[];
+  const lineRx=/^(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(.+?)\s+(\d{1,3}(?:,\d{3})*\.\d{2})\s*(CR)?$/i;
+  const skipRx=/previous balance|bill payment|sub.?total|grand total|minimum payment|instalment plan|balance b\/f|opening balance/i;
+  const year=detectYear(text);
+  for(const line of text.split('\n')){
+    const m=line.trim().match(lineRx); if(!m)continue;
+    const[,day,mon,desc,amtRaw,cr]=m;
+    if(skipRx.test(desc))continue;
+    const d=new Date(year,MONTH_IDX[mon.toUpperCase()],+day);
+    const amount=parseFloat(amtRaw.replace(',',''));
+    const merchant=normalize(desc);
+    const isCredit=!!cr;
+    txs.push({date:d,raw:desc.trim(),merchant,amount:isCredit?-amount:amount,
+      category:MERCHANT_RULES[merchant]||categorize(desc),
+      ruleApplied:!!MERCHANT_RULES[merchant],month:makeMonth(d),source:sourceName});
+  }
+  return txs;
+}
+
+async function processFile(file){
+  if(loadedFiles.has(file.name)){toast(`"${file.name}" already loaded`,'err');return;}
+  document.getElementById('procMsg').style.display='';
+  try{
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let text='';
+    for(let i=1;i<=pdf.numPages;i++){
+      const pg=await pdf.getPage(i), ct=await pg.getTextContent();
+      let lastY=null;
+      for(const item of ct.items){
+        const y=Math.round(item.transform[5]);
+        if(lastY!==null&&Math.abs(y-lastY)>3)text+='\n';
+        text+=item.str+' '; lastY=y;
+      }
+      text+='\n';
+    }
+    const newTxs=await parseDBS(text,file.name);
+    if(!newTxs.length){toast(`No transactions found in "${file.name}"`,'err');}
+    else{
+      allTx.push(...newTxs);
+      loadedFiles.add(file.name);
+      addChip(file.name);
+      const ruled=newTxs.filter(t=>t.ruleApplied).length;
+      toast(`Loaded ${newTxs.length} transactions${ruled?` · ${ruled} auto-categorized by rules`:''} ✓`,'ok');
+      render();
+    }
+  }catch(e){toast('Error reading PDF: '+e.message,'err');}
+  document.getElementById('procMsg').style.display='none';
+}
+
+function addChip(name){
+  const c=document.createElement('div');
+  c.className='chip'; c.id='chip_'+CSS.escape(name);
+  c.innerHTML=`📄 ${name} <span class="rm" onclick="removeFile('${name.replace(/'/g,"\\'")}')">×</span>`;
+  document.getElementById('fChips').appendChild(c);
+}
+function removeFile(name){
+  allTx=allTx.filter(t=>t.source!==name);
+  loadedFiles.delete(name);
+  document.getElementById('chip_'+CSS.escape(name))?.remove();
+  currentMonth='All'; page=1; render();
+  toast(`Removed "${name}"`,'ok');
+}
+
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');[...e.dataTransfer.files].filter(f=>f.name.endsWith('.pdf')).forEach(processFile);});
+document.getElementById('fileInput').addEventListener('change',e=>{[...e.target.files].forEach(processFile);e.target.value='';});
+
+// ─── Sync link (cross-device rule sharing via URL hash) ───────────────────────
+function copySyncLink(){
+  const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(MERCHANT_RULES))));
+  const url=location.href.split('#')[0]+'#sync='+encoded;
+  navigator.clipboard.writeText(url).then(()=>{
+    toast('Sync link copied! Open it on your phone to import all rules 🔗','ok');
+  }).catch(()=>{
+    // fallback: show in prompt so they can copy manually
+    prompt('Copy this link and open it on your phone:',url);
+  });
+}
+
+function checkSyncFromURL(){
+  const hash=location.hash;
+  if(!hash.startsWith('#sync='))return;
+  try{
+    const rules=JSON.parse(decodeURIComponent(escape(atob(hash.slice(6)))));
+    const count=Object.keys(rules).length;
+    Object.assign(MERCHANT_RULES,rules);
+    localStorage.setItem('spending_rules',JSON.stringify(MERCHANT_RULES));
+    applyRulesToTx(allTx);
+    history.replaceState(null,'',location.pathname);
+    updateRuleCount();
+    toast(`✅ Synced ${count} rules from link!`,'ok');
+  }catch(e){ /* bad hash, ignore */ }
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+let _tt;
+function toast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show '+type;
+  clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ─── Empty state ─────────────────────────────────────────────────────────────
+function renderEmptyState(){
+  document.getElementById('statsRow')?.style && (document.getElementById('statsRow').style.display='none');
+  // show a welcome card instead of charts/table when no data
+  const cont=document.querySelector('.container');
+  if(!allTx.length&&!document.getElementById('welcomeCard')){
+    const card=document.createElement('div');
+    card.id='welcomeCard';
+    card.style.cssText='background:#141724;border:1px solid #252b45;border-radius:14px;padding:40px;text-align:center;margin-top:8px;';
+    card.innerHTML=`<div style="font-size:48px;margin-bottom:16px">📄</div>
+      <h2 style="font-size:18px;font-weight:700;color:#fff;margin-bottom:8px">Upload a statement to get started</h2>
+      <p style="font-size:14px;color:#6b7280;margin-bottom:24px">Click <strong style="color:#a5b4fc">📄 Add Statement</strong> above and drop in your DBS PDF.<br>Your ${Object.keys(MERCHANT_RULES).length} saved merchant rules will auto-apply.</p>
+      <button onclick="openUpload()" style="background:#6366f1;border:none;border-radius:9px;padding:12px 28px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">Add Statement</button>`;
+    cont.appendChild(card);
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadRules();
+checkSyncFromURL(); // auto-import rules if opened via sync link
+if(allTx.length){
+  render();
+}else{
+  renderMonthTabs();
+  renderEmptyState();
+  updateRuleCount();
+}
+</script>
+</body>
+</html>
